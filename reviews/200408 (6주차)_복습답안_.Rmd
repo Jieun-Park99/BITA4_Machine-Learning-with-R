@@ -1,0 +1,210 @@
+---
+title: "6주차 복습문제"
+author: "3조"
+output: html_document
+---
+
+
+### 다음 데이터는 Boston 근교의 집 값을 나타내는 데이터이다. 물음에 답하시오.
+
+
+```{r}
+library(MASS)
+str(Boston)
+
+```
+<br>
+
+### 변수 설명
+
+<br>
+
+> CRIM : Town별 1인당 범죄율
+<br> <br> 
+ZN : 25000 평방피트를 초고하는 거주지역 비율
+<br> <br> 
+INDUS : 비소매상업지역이 점유한 토지 비율
+<br> <br> 
+CHAS :찰스 강의 근처 여부 (경계에 있을 시 1 , 아니면 0)
+<br> <br> 
+NOX : 10ppm 당 농축 일산화질소
+<br> <br> 
+RM : 주택 1가구당 평균 방 갯수
+<br> <br> 
+AGE : 1940년 이전 건축된 주택 비율
+<br> <br> 
+DIS : 5개 보스턴 직업센터까지의 접근성 지수
+<br> <br> 
+RAD : 방사형 도로까지의 접근성 지수
+<br> <br> 
+TAX : 10000 달러 당 재산세율
+<br> <br> 
+PTRATIO : Town 별 학생/교사 비율
+<br> <br> 
+B : Town 별 흑인의 비율
+<br> <br> 
+LSTAT : 하위계층의 비율
+<br> <br> 
+MEDV : 본인 소유 주택가격(Median , 단위:$1000)
+
+<br> 
+
+
+## 1. 주택가격을 예측하기 위한 회귀트리를 만들고자 한다.
+
+<br> 
+
+## 전체 데이터를 Train, Test (7:3) 으로 나눈 후 , 모델을 적합하라.<br>
+## 또한 각 속성 중 가장 중요한 속성을 설명하라. (제시한 변수 설명 참고할 것.)
+
+
+```{r}
+
+
+set.seed(6318)
+
+train=sample(1:nrow(Boston),nrow(Boston)*0.7)
+
+Boston_train=Boston[train,]
+Boston_test=Boston[-train,]
+
+
+library(rpart)
+
+Boston_tree=rpart(medv~., data=Boston_train)
+summary(Boston_tree)
+
+```
+> variable importance를 살펴보면 rm : 34 , lstat : 23 으로 <br>
+다른 변수에 비해 중요도가 굉장히 높은 것으로 나타났다. <br>
+즉, 주택가격에 있어서 주택 1가구당 평균 방의 갯수와 <br>
+하위계층의 비율 여부가 가장 중요한 것으로 보인다.
+<br>
+
+## 1-1. 적합한 모델을 토대로 plot을 그리고, <br>
+## 가장 저렴한 집 값의 조건을 서술하고, RSS를 구하여 <br>
+## 그 의미를 서술하라. <br> (제시한 변수설명 참고할 것.)
+
+
+```{r}
+library(rpart.plot)
+rpart.plot(Boston_tree,digits=3)
+
+pred_tree=predict(Boston_tree,newdata = Boston_test)
+
+sqrt(mean((pred_tree-Boston[-train,"medv"])^2))
+
+```
+> rm < 6.94 , lstat >= 14.4 , crim >= 6.99 인 경우, 집 값이 가장 저렴했다. <br>
+즉, 주택 1가구당 평균 방의 갯수가 약 7개 미만, 
+<br>
+하위 계층의 비율이 약 14.4% 이상,
+<br>
+각 Town 별 1인당 범죄율이 6.99 % 이상인 경우 집 값이 가장 저렴한 것으로 보인다.
+<br> 
+또한 해당 모델에서의 RSS는 약 4.912로 모델 예측값이 실제 주택 가격과<br>
+평균 $4912 정도 차이가 있다고 할 수 있다.
+
+<br>
+
+## 2. 과적합 방지를 위해 앞서 구한 모델을 가지치기하려고 한다. <br>
+## CP와 plot을이용해 최적의 트리 크기를 구하고  <br>
+## 그에 대한 근거를 구하시오.
+
+```{r}
+printcp(Boston_tree)
+
+plotcp(Boston_tree)
+```
+> plot으로 보아, 잎의 갯수가 5에서 오차 감소율이 가장 높았다. <br>
+따라서 5 정도로 하는 것이 적당해보인다.
+
+
+## 2-1. Pruning 과정 이후의 모델을 구하고, <br>
+## MAE와 상관관계 및 전체 예측값의 범위를 구하여, <br>
+## 모델 성능을 비교하라.
+
+```{r}
+library(tree)
+
+Boston_pru=prune.rpart(Boston_tree, 
+                       cp=Boston_tree$cptable[5,"CP"])
+
+rpart.plot(Boston_pru,digits = 3)
+
+
+pred_pru=predict(Boston_pru,newdata = Boston_test)
+pred_tree=predict(Boston_tree,newdata = Boston_test)
+
+summary(pred_pru) ; summary(pred_tree) ; summary(Boston_test$medv)
+
+MAE=function(actual, predicted){
+  mean(abs(actual-predicted))
+}
+
+
+MAE(pred_pru, Boston_test$medv) ; MAE(pred_tree, Boston_test$medv)
+
+cor(pred_pru, Boston_test$medv) ; cor(pred_tree, Boston_test$medv)
+
+
+
+```
+
+
+> MAE, 및 상관관계 측면에서 오히려 성능이 떨어졌다. <br>
+Pruning을 하지 않는 것이 맞다고 볼 수 있다.
+
+
+
+
+<br>
+
+## 3. 새로운 함수를 통해 모델을 적합하고자 한다. <br>
+## 모델 트리를 이용하여 새로운 모델을 구하고 <br>
+## 앞서 사용한 방법으로 모델 성능을 비교하라. <br>
+## 또한 주어진 조건의 예상 집 값을 해당 모델을 통해 구하라.
+```{r}
+library(RWeka)
+
+set.seed(6318)
+
+Boston_mod=M5P(medv~., data=Boston_train, option=T)
+Boston_mod
+
+pred_mod=predict(Boston_mod,newdata = Boston_test)
+
+summary(pred_mod) ; summary(pred_tree)
+
+MAE=function(actual, predicted){
+  mean(abs(actual-predicted))
+}
+
+
+MAE(pred_mod, Boston_test$medv) ; MAE(pred_tree, Boston_test$medv)
+
+
+cor(pred_mod, Boston_test$medv) ; cor(pred_tree, Boston_test$medv)
+
+
+  
+
+```
+
+<br>
+
+> 주어진 조건으로 보아 LM4가 적당한 것으로 보임. <br>
+rm : 6 , lstat : 12.6 , ptratio : 18.4 , indus : 11.13 <br>
+
+```{r}
+medv=	-0.0191 * 3.613	+ 0.0096 * 11.36	+ 0.0237 * 11.13- 3.5284 * 0.554 - 0.624 * 6 -
+   0.0056 * 68.57	- 0.4487 * 3.795 + 0.1006 * 9.5 - 0.0037 * 408.2 - 0.2241 * 18.4 +
+	0.0124 * 356 - 0.1468 * 12.6  + 30.4487
+
+medv
+
+```
+<br>
+> 해당 조건의 집 값은 약 $ 20853 라고 할 수 있다.
+
+

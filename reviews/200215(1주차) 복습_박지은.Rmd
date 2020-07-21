@@ -1,0 +1,53 @@
+---
+title: "ML_hw1"
+author: "박지은"
+date: '2020 2 17 '
+output: html_document
+---
+# 1번
+```{r}
+rm(list=ls())
+data = read.csv("C:/Users/danan/Desktop/비타민/머신러닝_R/insurance2.csv")
+data[,c("sex", "smoker","region")] = lapply(data[, c("sex","smoker","region")], factor)
+data$bmi[is.na(data$bmi)] = mean(data$bmi, na.rm=T)
+data$bmi30 = as.factor(ifelse(data$bmi >=30, "비만", "정상"))
+
+set.seed(123)
+index = sample(c("train","test"),size=nrow(data),replace=T,prob=c(0.7, 0.3))
+table(index)
+train = data[index=="train",]
+test = data[index=="test",]
+library(caret)
+set.seed(123)
+cv_list = createFolds(train$charges, k=5)
+head(cv_list)
+```
+
+# 2_1번
+```{r}
+cv_valid_set = train[cv_list[[1]],]
+cv_valid_set
+cv_train_set = train[-cv_list[[1]],]
+cv_train_set
+```
+
+# 2_2번
+```{r}
+fit=lm(formula = log(charges) ~ age + sex + children + region + bmi30 * smoker, data = cv_train_set)
+summary(fit)
+
+rmse = sqrt(sum((exp(predict(fit,newdata=cv_valid_set))-cv_valid_set$charges)^2)/(nrow(cv_valid_set)-fit$rank))
+rmse 
+```
+
+# 3번
+```{r}
+for (i in 1:5){
+  cv_valid_set = train[cv_list[[i]],]
+  cv_train_set = train[-cv_list[[i]],]
+  fit=lm(formula = log(charges) ~ age + sex + children + region + bmi30 * smoker, data = cv_train_set)
+  rmse[i] = sqrt(sum((exp(predict(fit,newdata=cv_valid_set))-cv_valid_set$charges)^2)/(nrow(cv_valid_set)-fit$rank))
+}
+rmse
+mean(rmse)
+```

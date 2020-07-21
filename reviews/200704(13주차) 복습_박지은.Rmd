@@ -1,0 +1,60 @@
+---
+title: "hw_13"
+author: "박지은"
+date: '2020 7 7 '
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    toc_depth: 6
+    toc_float: true
+    theme: spacelab
+---
+## 1번
+```{r}
+setwd("C:/Users/danan/Desktop/Bitamin/ML_R")
+library(arules)
+groceries = read.transactions("groceries.csv", sep=',')
+```
+
+
+### 1-1
+```{r}
+itemFrequencyPlot(groceries, topN=5)
+```
+> yogurt
+
+
+### 1-2
+```{r}
+rule = apriori(groceries, parameter = list(support=0.005, confidence=0.6,minlen=3))
+```
+> 22개의 규칙
+
+
+### 1-3
+```{r}
+library(arulesViz)
+plot(rule, method='grouped',control=list(type='items'))
+```
+> 지지도가 가장 큰 규칙은 1 rules={butter,yogurt}이고 향상도가 가장 큰 규칙은 1 rules={citrus fruit, whole milk, +1 items}이다.
+
+
+## 2번
+```{r}
+```
+
+### 2-1
+```{r}
+inspect(sort(rule, by='confidence')[1:8])
+```
+> 8번째로 신뢰도가 큰 규칙은 citrus fruit를 사는 사람은 root vegetables을 함께사고 또  whole milk를 함께 사는 것이다.
+
+### 2-2
+```{r}
+yogurt_n_butter_rule = subset(rule, items %ain% c("yogurt","butter"))
+yogurt_n_butter_rule
+inspect(yogurt_n_butter_rule)
+```
+> yogurt와 butter만을 산 사람은 whole milk를 함께 구매한다는 규칙이다. lift값은 2.5정도로 높은 편이고 실행가능한 범주에 속하므로 수용 가능하다고 볼 수 있다.
+
